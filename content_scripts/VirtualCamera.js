@@ -311,6 +311,8 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             let didMoveAtAll = false;
             let initialDistance = 0;
             let lastDistance = 0;
+            let pinchTriggered = false;
+            let panTriggered = false;
 
             // Prevent the default pinch gesture response (zooming) on mobile browsers
             document.addEventListener('gesturestart', (event) => {
@@ -337,12 +339,38 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                     analyzeTouchMovement(event); // rotates because isRotateRequested is true
                 }
             }
+            
+            const PINCH_DISTANCE_THRESHOLD = 30;
+            const PAN_DISTANCE_THRESHOLD = 30;
 
+            let initialTouchCenter = null;
             // Handle two-finger drag to pan
             const handlePan = (event) => {
                 event.preventDefault();
                 if (event.touches.length === 2) {
-                    analyzeTouchMovement(event); // pans because isStrafeRequested is true
+
+                    // first check to see that the center of the gesture has translated enough (before pinch triggered)
+                    if (!panTriggered) {
+                        const touch1 = event.touches[0];
+                        const touch2 = event.touches[1];
+                        let center = {
+                            x: (touch1.clientX + touch2.clientX) / 2,
+                            y: (touch1.clientY + touch2.clientY) / 2
+                        };
+                        if (!initialTouchCenter) {
+                            initialTouchCenter = center;
+                        } else {
+                            let distance = Math.hypot(center.x - initialTouchCenter.x, center.y - initialTouchCenter.y);
+                            if (distance > PAN_DISTANCE_THRESHOLD && !pinchTriggered) {
+                                panTriggered = true;
+                                this.mouseInput.isStrafeRequested = true;
+                            }
+                        }
+                    } else {
+                        analyzeTouchMovement(event); // pans because isStrafeRequested is true
+                        this.mouseInput.unprocessedDX *= 3; // pan faster on touchscreens
+                        this.mouseInput.unprocessedDY *= 3;
+                    }
                 }
             }
 
@@ -354,15 +382,27 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                     const touch2 = event.touches[1];
                     const currentDistance = Math.hypot(touch2.clientX - touch1.clientX, touch2.clientY - touch1.clientY);
 
-                    if (initialDistance === 0) { // indicates the start of the pinch gesture
-                        initialDistance = currentDistance;
-                        lastDistance = initialDistance;
+                    if (!pinchTriggered) {
+                        if (initialDistance === 0) { // indicates the start of the pinch gesture
+                            initialDistance = currentDistance;
+                            lastDistance = currentDistance;
+                        } else if (Math.abs(currentDistance - initialDistance) > PINCH_DISTANCE_THRESHOLD && !panTriggered) {
+                            pinchTriggered = true;
+                            lastDistance = currentDistance;
+                        }
+                    
                     } else {
-                        // Calculate the pinch scale based on the change in distance over time.
-                        // 3 is empirically determined to feel natural. -= so bigger distance leads to closer zoom
-                        this.mouseInput.unprocessedScroll -= 3 * (currentDistance - lastDistance); 
+                        this.mouseInput.unprocessedScroll -= 3 * ((currentDistance - lastDistance)); // - initialDistance);
                         lastDistance = currentDistance;
                     }
+                    
+                    // if (pinchTriggered) {
+                    //         // Calculate the pinch scale based on the change in distance over time.
+                    //         // 3 is empirically determined to feel natural. -= so bigger distance leads to closer zoom
+                    //         this.mouseInput.unprocessedScroll -= 3 * (currentDistance - lastDistance);
+                    //         lastDistance = currentDistance;
+                    //     }
+                    // }
                 }
             }
 
@@ -372,6 +412,8 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
                 isMultitouchGestureActive = true;
                 didMoveAtAll = false;
+                pinchTriggered = false;
+                panTriggered = false;
 
                 if (event.touches.length === 1) {
                     this.mouseInput.isRotateRequested = true; // rotate
@@ -383,7 +425,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 } else if (event.touches.length === 2) {
                     initialDistance = 0; // Reset pinch distance
                     this.mouseInput.isRotateRequested = false;
-                    this.mouseInput.isStrafeRequested = true; // pan
+                    this.mouseInput.isStrafeRequested = false; // pan
                     this.mouseInput.last.x = 0;
                     this.mouseInput.last.y = 0;
                 }
