@@ -463,6 +463,7 @@ createNameSpace('realityEditor.device.desktopAdapter');
 
         return tempVisibleObjects;
     }
+    exports.getVisibleObjects = getVisibleObjects;
 
     function createNativeAPISocket() {
         // lazily instantiate the socket to the server if it doesn't exist yet

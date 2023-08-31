@@ -20,7 +20,8 @@ import { AnalyticsFollowable } from './AnalyticsFollowable.js';
     const DEBUG = false;
 
     // arbitrary birds-eye view to start the camera with. it will look towards the world object origin
-    let INITIAL_CAMERA_POSITION = [-1499.9648912671637, 8275.552791086136, 5140.3791620707225];
+    // let INITIAL_CAMERA_POSITION = [-1499.9648912671637, 8275.552791086136, 5140.3791620707225];
+    let INITIAL_CAMERA_POSITION = [-1499.9648912671637, 1275.552791086136, 15140.3791620707225];
 
     // used to render an icon at the target position to help you navigate the scene
     let rotateCenterElementId = null;

@@ -600,7 +600,8 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             let distancePanFactor = Math.max(2, distanceToFocus / 1000); // speed when 1 meter units away, scales up w/ distance
 
             if (this.idleOrbitting) {
-                this.mouseInput.unprocessedDX = 0.15;
+                this.mouseInput.unprocessedDX = 0.15 * 10 * 10 * (1 + Math.sin(Date.now() / 200));
+                this.mouseInput.unprocessedDY = 0.15 * 10 * 10 * (Math.sin(Date.now() / 200));
                 this.mouseInput.isRotateRequested = true;
                 this.mouseInput.isStrafeRequested = false;
             }
@@ -751,6 +752,11 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
                 this.targetPosition = add(this.targetPosition, scalarMultiply(this.targetVelocity, rotateFactor));
             }
 
+            let groundPlaneNode = realityEditor.sceneGraph.getGroundPlaneNode();
+            groundPlaneNode.needsRerender = true;
+            let cameraNode = realityEditor.sceneGraph.getCameraNode();
+            cameraNode.needsRerender = true;
+
             // tween the matrix every frame to animate it to the new position
             // let cameraNode = realityEditor.sceneGraph.getSceneNodeById('CAMERA');
             let currentCameraMatrix = realityEditor.gui.ar.utilities.copyMatrix(this.cameraNode.localMatrix);
@@ -759,18 +765,47 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             if (totalDifference < 0.00001) {
                 return; // don't animate the matrix with an infinite level of precision, stop when it gets very close to destination
             }
+            
+            // let skipSmoothing = false;
+            // let skipEntirely = false;
+            // if (totalDifference < 1) {
+            //     skipSmoothing = true;
+            //     if (totalDifference > 0.00001) {
+            //         skipEntirely = true;
+            //     }
+            // }
+            //
+            // if (skipEntirely) {
+            //     return; // don't animate the matrix with an infinite level of precision, stop when it gets very close to destination
+            // }
 
             // disables smoothing while following, to provide a tighter sync with the followed element
-            let shouldSmoothCamera = !this.isFollowingFirstPerson() && !this.zoomOutTransition;
+            let shouldSmoothCamera = !this.isFollowingFirstPerson() && !this.zoomOutTransition; // && !skipSmoothing;
             let animationSpeed = shouldSmoothCamera ? 0.3 : 1.0;
             let newCameraMatrix = tweenMatrix(currentCameraMatrix, destinationCameraMatrix, animationSpeed);
 
+            let doDebugPrint = true;
             if (!options.skipApplying) {
                 if (this.cameraNode.id === 'CAMERA') {
-                    realityEditor.sceneGraph.setCameraPosition(newCameraMatrix);
+                    realityEditor.sceneGraph.setCameraPosition(newCameraMatrix, doDebugPrint);
+
+                    // stop the update loop if we enter AR mode
+                    if (!realityEditor.device.environment.isARMode()) {
+                        realityEditor.gui.ar.draw.update(realityEditor.device.desktopAdapter.getVisibleObjects());
+                    } 
+
+                    // TODO: ensure that visibleObjects that aren't known objects get filtered out
+
                 } else {
                     this.cameraNode.setLocalMatrix(newCameraMatrix);
                 }
+            }
+
+            if (shouldSmoothCamera) {
+                let groundPlaneNode = realityEditor.sceneGraph.getGroundPlaneNode();
+                groundPlaneNode.needsRerender = true;
+                let cameraNode = realityEditor.sceneGraph.getCameraNode();
+                cameraNode.needsRerender = true;
             }
 
             // allows us to schedule code to trigger exactly after the camera has updated its position N times
