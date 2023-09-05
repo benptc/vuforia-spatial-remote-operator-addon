@@ -791,6 +791,7 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
 
                     // stop the update loop if we enter AR mode
                     if (!realityEditor.device.environment.isARMode()) {
+                        realityEditor.gui.ar.draw.frameNeedsToBeRendered = true;
                         realityEditor.gui.ar.draw.update(realityEditor.device.desktopAdapter.getVisibleObjects());
                     } 
 
