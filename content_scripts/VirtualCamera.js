@@ -782,7 +782,8 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             // disables smoothing while following, to provide a tighter sync with the followed element
             let shouldSmoothCamera = !this.isFollowingFirstPerson() && !this.zoomOutTransition; // && !skipSmoothing;
             let animationSpeed = shouldSmoothCamera ? 0.3 : 1.0;
-            let newCameraMatrix = tweenMatrix(currentCameraMatrix, destinationCameraMatrix, animationSpeed);
+            // let newCameraMatrix = tweenMatrix(currentCameraMatrix, destinationCameraMatrix, animationSpeed);
+            let newCameraMatrix = improvedTweenMatrix(currentCameraMatrix, destinationCameraMatrix, animationSpeed);
 
             let doDebugPrint = true;
             if (!options.skipApplying) {
@@ -1206,6 +1207,58 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             m[i] = destination[i] * tweenSpeed + currentMatrix[i] * (1.0 - tweenSpeed);
         }
         return m;
+    }
+
+    function setMatrixFromArray(matrix, array) {
+        matrix.set(array[0], array[4], array[8], array[12],
+            array[1], array[5], array[9], array[13],
+            array[2], array[6], array[10], array[14],
+            array[3], array[7], array[11], array[15]);
+    }
+
+    function improvedTweenMatrix(currentMatrix, destination, tweenAmount = 0.5) {
+        if (currentMatrix.length !== destination.length) {
+            console.warn('matrices are inequal lengths. cannot be tweened so just assigning current=destination');
+            return realityEditor.gui.ar.utilities.copyMatrix(destination);
+        }
+        if (tweenAmount <= 0 || tweenAmount >= 1) {
+            return realityEditor.gui.ar.utilities.copyMatrix(destination);
+        }
+
+        const currentCameraMatrix = new THREE.Matrix4();
+        setMatrixFromArray(currentCameraMatrix, currentMatrix);
+        const destinationCameraMatrix = new THREE.Matrix4();
+        setMatrixFromArray(destinationCameraMatrix, destination);
+
+        // Initial and destination positions, rotations, and scales
+        const initialPos = new THREE.Vector3();
+        const initialRot = new THREE.Quaternion();
+        const initialScale = new THREE.Vector3();
+
+        const destPos = new THREE.Vector3();
+        const destRot = new THREE.Quaternion();
+        const destScale = new THREE.Vector3();
+
+        // 1. --- decompose matrix into pos/rot/scale
+
+        currentCameraMatrix.decompose(initialPos, initialRot, initialScale);
+        destinationCameraMatrix.decompose(destPos, destRot, destScale);
+
+        // 2. --- tween each component
+
+        // Lerp position and scale
+        initialPos.lerp(destPos, tweenAmount);
+        initialScale.lerp(destScale, tweenAmount);
+        // Slerp rotation (spherical linear interpolation)
+        // THREE.Quaternion.slerp(initialRot, destRot, initialRot, tweenAmount);
+        const qm = new THREE.Quaternion(); // Create an instance to store the result
+        qm.slerpQuaternions(initialRot, destRot, tweenAmount);
+        initialRot.copy(qm);  // If you want to update initialRot with the new value
+
+        // 3. --- recompose matrix from tweened components
+        currentCameraMatrix.compose(initialPos, initialRot, initialScale);
+
+        return currentCameraMatrix.elements;
     }
 
     function getCameraZoomSensitivity() {
