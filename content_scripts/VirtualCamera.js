@@ -788,9 +788,9 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             let doDebugPrint = true;
             if (!options.skipApplying) {
                 if (this.cameraNode.id === 'CAMERA') {
-                    let fasterAnimationSpeed = shouldSmoothCamera ? 0.6 : 1.0;
-                    let lessSmoothedMatrix = improvedTweenMatrix(currentCameraMatrix, destinationCameraMatrix, fasterAnimationSpeed);
-                    realityEditor.sceneGraph.setCameraPosition(newCameraMatrix, doDebugPrint, lessSmoothedMatrix);
+                    // perform the tweening one more time to send the iframes a matrix that removes lag
+                    let oneFrameAheadMatrix = improvedTweenMatrix(newCameraMatrix, destinationCameraMatrix, animationSpeed);
+                    realityEditor.sceneGraph.setCameraPosition(newCameraMatrix, doDebugPrint, oneFrameAheadMatrix);
 
                     // stop the update loop if we enter AR mode
                     if (!realityEditor.device.environment.isARMode()) {
