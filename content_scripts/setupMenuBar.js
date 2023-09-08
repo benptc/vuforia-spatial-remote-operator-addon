@@ -132,9 +132,9 @@ createNameSpace('realityEditor.gui');
 
         const activateProfiler = new MenuItem(ITEM.ActivateProfiler, { shortcutKey: 'I', toggle: true, defaultVal: false }, (checked) => {
             if (checked) {
-                if (realityEditor.device.profiling) realityEditor.device.profiling.activate();
+                if (realityEditor.device.profiling) realityEditor.device.profiling.show();
             } else {
-                if (realityEditor.device.profiling) realityEditor.device.profiling.deactivate();
+                if (realityEditor.device.profiling) realityEditor.device.profiling.hide();
             }
         });
         menuBar.addItemToMenu(MENU.Develop, activateProfiler);
