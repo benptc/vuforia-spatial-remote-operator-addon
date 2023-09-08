@@ -788,7 +788,9 @@ import * as THREE from '../../thirdPartyCode/three/three.module.js';
             let doDebugPrint = true;
             if (!options.skipApplying) {
                 if (this.cameraNode.id === 'CAMERA') {
-                    realityEditor.sceneGraph.setCameraPosition(newCameraMatrix, doDebugPrint);
+                    let fasterAnimationSpeed = shouldSmoothCamera ? 0.6 : 1.0;
+                    let lessSmoothedMatrix = improvedTweenMatrix(currentCameraMatrix, destinationCameraMatrix, fasterAnimationSpeed);
+                    realityEditor.sceneGraph.setCameraPosition(newCameraMatrix, doDebugPrint, lessSmoothedMatrix);
 
                     // stop the update loop if we enter AR mode
                     if (!realityEditor.device.environment.isARMode()) {
