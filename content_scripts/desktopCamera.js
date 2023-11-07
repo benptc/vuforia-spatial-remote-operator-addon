@@ -408,6 +408,51 @@ import { AnalyticsFollowable } from './AnalyticsFollowable.js';
                         gpNode = realityEditor.sceneGraph.getSceneNodeById(realityEditor.sceneGraph.NAMES.GROUNDPLANE);
                     }
                     realityEditor.network.realtime.sendCameraMatrix(worldId, cameraNode.getMatrixRelativeTo(gpNode));
+
+                    let relativeCameraMatrix = cameraNode.getMatrixRelativeTo(gpNode);
+                    const SCALE = 1 / 1000;
+                    const floorOffset = realityEditor.gui.ar.areaCreator.calculateFloorOffset() // in my example, it returns -1344.81
+                    
+                    //get the following values from NerfStudio/outputs/the_target_folder/dataparser_transforms.json
+                    
+                    const parserMatrixScale = 0.13523484986150555;
+                    const offset_x = 0.7202233672142029;
+                    const offset_y = -0.5659182071685791;
+                    const offset_z = -1.2645909786224365;
+
+                    relativeCameraMatrix[12] = (relativeCameraMatrix[12]*SCALE + offset_x)*parserMatrixScale;
+                    relativeCameraMatrix[13] = ((relativeCameraMatrix[13] + floorOffset)*SCALE + offset_y)*parserMatrixScale;
+                    relativeCameraMatrix[14] = (relativeCameraMatrix[14]*SCALE + offset_z)*parserMatrixScale;
+                    // we need to apply transform matrix to this cameraPos to 
+                    // translate the coordinate system from SpatialToolbox to NerfStudio
+
+                    // "data parser transform": 
+                    //         [1.0, 0.0, 0.0, 0.13650280237197876],
+                    //         [0.0, 1.0, 0.0, 0.3729093670845032],
+                    //         [0.0, 0.0, 1.0, 0.829950749874115]
+
+                    //         "scale": 0.4957212570173335
+
+                    // internally, it won't send it if we haven't enabled nerf rendering mode, so it's ok to do this always
+                    realityEditor.gui.ar.desktopRenderer.sendCameraToNerfStudio(relativeCameraMatrix);
+
+                    let distanceToOrigin = cameraNode.getDistanceTo(gpNode);
+                    let verticalAngle = virtualCamera.verticalAngle;
+
+                    let isCamMoving = false;
+                    let newCamPos = [virtualCamera.position[0], virtualCamera.position[1], virtualCamera.position[2]];
+                    if(newCamPos[0] !== oldCamPos[0] || newCamPos[1] !== oldCamPos[1] || newCamPos[2] !== oldCamPos[2])
+                    {
+                        isCamMoving = true;
+                        oldCamPos = newCamPos;
+                    }else
+                    {
+                        isCamMoving = false;
+                    }
+                    
+                    //let isMoving = virtualCamera.velocity[0] !== 0 || virtualCamera.velocity[1] !== 0 || virtualCamera.velocity[2] !== 0;
+                    //console.log('virtual cam is moving: ', isCamMoving);
+                    realityEditor.gui.ar.desktopRenderer.updateNerfRendering(distanceToOrigin, verticalAngle, isCamMoving, Date.now());
                 }
             } catch (e) {
                 if (DEBUG) {

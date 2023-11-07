@@ -61,6 +61,33 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';;
     let didAddModeTransitionListeners = false;
     let gltfUpdateCallbacks = [];
 
+    // ---------------------------------------------------------------------
+
+    let nerfCanvas = null;
+    let nerfStudioConnection = null; // the NerfStudioConnection class instance
+
+    // configure when the nerf renderer appears or disappears
+    // for each variable (time, distance, verticalAngle), set BEGIN and END to the same value to disable animations
+    // or make them a bit different to interpolate the opacity based on the bounds
+
+    // how much time after the camera stops moving should we wait before showing the nerf view
+    const BEGIN_FADE_TIME = 1350; // time in milliseconds
+    const END_FADE_TIME = 1750;
+    // how far away from the ground plane origin can we be before hiding the nerf
+    const BEGIN_FADE_DISTANCE = 8000; // in millimeters
+    const END_FADE_DISTANCE = 12000;
+    // how low of a viewing angle can we have before hiding it (e.g. looking at floor = 0, looking level = PI/2, looking at ceiling = PI)
+    const BEGIN_FADE_ANGLE = Math.PI * 0.5;
+    const END_FADE_ANGLE = Math.PI * 0.75;
+
+    // ---------------------------------------------------------------------
+
+    exports.sendCameraToNerfStudio = (cameraMatrix) => {
+        if (nerfStudioConnection) {
+            nerfStudioConnection.sendCameraToNerfStudio(cameraMatrix);
+        }
+    };
+
     /**
      * Public init method to enable rendering if isDesktop
      */
@@ -360,6 +387,73 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';;
             realityEditor.humanPose.draw.setHumanPosesVisible(toggled);
         });
 
+        realityEditor.gui.getMenuBar().addCallbackToItem(realityEditor.gui.ITEM.NerfRendering, (value) => {
+
+            if (value) {
+                if (!nerfStudioConnection) {
+                    //nerfStudioConnection = new realityEditor.device.NerfStudioConnection();
+                    // re-routing this to the new JS script for developing the new python webSocket connection
+                    // *** !!! ***
+                    nerfStudioConnection = new realityEditor.websocket.WebSocketConnection();
+                    if (gltf) {
+                        staticModelMode = false;
+                        // gltf.visible = true; // use this when doing manual alignment
+                        gltf.visible = false; // use this for normal use
+                        realityEditor.gui.ar.groundPlaneRenderer.stopVisualization();
+                    }
+                }
+                const onTurnOn = () => {
+                    if (gltf) { 
+                        staticModelMode = false;
+                        // gltf.visible = true; // use this when doing manual alignment
+                        gltf.visible = false; // use this for normal use
+                        realityEditor.gui.ar.groundPlaneRenderer.stopVisualization();
+                        // nerfEffect = 0;
+                    }
+                    console.log('hiding gltf for nerf');
+                }
+                nerfStudioConnection.turnOn(onTurnOn);
+                //nerfStudioConnection.start
+                
+                // // show nerf canvas
+                // if (!nerfCanvas) {
+                //     nerfCanvas = document.createElement('video');
+                //     nerfCanvas.setAttribute('autoplay', 'true');
+                //     nerfCanvas.id = 'nerfCanvas';
+                //     nerfCanvas.style.position = 'absolute';
+                //     nerfCanvas.style.left = '0';
+                //     nerfCanvas.style.top = '0';
+                //     nerfCanvas.width = window.innerWidth;
+                //     nerfCanvas.height = window.innerHeight;
+                //     nerfCanvas.style.width = window.innerWidth + 'px';
+                //     nerfCanvas.style.height = window.innerHeight + 'px';
+                //     nerfCanvas.style.backgroundColor = 'rgba(0, 0, 0, 0.3)';
+                //     // nerfCanvas.style.transform = 'translateZ(4px)';
+                //     nerfCanvas.style.zIndex = '-1'; // go behind the glproxy canvas
+                //     nerfCanvas.style.opacity = '1';
+                //     nerfCanvas.style.pointerEvents = 'none';
+                //     nerfCanvas.style.clipPath = 'circle(100% at 50% 50%)';
+                //     document.body.appendChild(nerfCanvas);
+                // }
+                // nerfCanvas.style.display = 'inline';
+            } else {
+
+                if (nerfStudioConnection) {
+                    nerfStudioConnection.turnOff();
+                }
+
+                // hide nerf canvas
+                //nerfCanvas.style.display = 'none';
+
+                if (gltf) { 
+                    staticModelMode = true;
+                    gltf.visible = true;
+                    realityEditor.gui.ar.groundPlaneRenderer.startVisualization();
+                    console.log('showing gltf again');
+                }
+            }
+        });
+
         realityEditor.gui.buttons.registerCallbackForButton(
             'logic',
             function onLogicMode() {
@@ -375,6 +469,151 @@ import {ShaderMode} from '../../src/spatialCapture/Shaders.js';;
             }
         );
     }
+
+    let nerfEffect = 1; //0 = always show; 1 = delayed render; 2 = focus effect; 3 = disabled for dev
+    // key press to toggle Nerf rendering effect, use key '>'
+    let mousePressed = false;
+    let magnifyingRadius = 15; // Adjust this value to change the radius of the magnifying area
+
+    window.addEventListener("keydown", (event) => {
+
+        // Check if the pressed key is '>'
+        if (event.key === ">") {
+            // Call the function you want to activate
+            if(nerfEffect == 2){nerfEffect=0;}
+            else{nerfEffect += 1;}
+            if(nerfEffect != 2){nerfCanvas.style.clipPath = 'circle(100% at 50% 50%)';}
+            console.log("Changing NeRF rendering mode: " + nerfEffect);
+        }
+        if (event.key === ".") {
+            // increase magnify radius
+            if(nerfEffect == 2)
+            {
+                if(magnifyingRadius < 35){magnifyingRadius += 1;}
+                updateMagnifyingArea(event.clientX, event.clientY);
+            }
+            
+        }
+        if (event.key === ",") {
+            // reduce magnify radius
+            if(nerfEffect == 2)
+            {
+                if(magnifyingRadius > 5){magnifyingRadius -= 1;}
+                updateMagnifyingArea(event.clientX, event.clientY);
+            }
+            
+        }
+    });
+
+    // Event listeners for mouse events: magnifying glass effect
+    window.addEventListener('mousedown', (event) => {
+        mousePressed = true;
+        if(nerfEffect == 2)
+        {updateMagnifyingArea(event.clientX, event.clientY);}
+    });
+
+    window.addEventListener('mousemove', (event) => {
+        if (mousePressed) {
+            if(nerfEffect == 2)
+            {updateMagnifyingArea(event.clientX, event.clientY);} 
+        }
+    });
+
+    window.addEventListener('mouseup', () => {
+        mousePressed = false;
+        if(nerfEffect == 2){hideMagnifyingArea();}
+    });
+    
+    function updateMagnifyingArea(x, y) {
+        let magString = magnifyingRadius.toString() + '%'
+        nerfCanvas.style.clipPath = `circle(${magString} at ${x}px ${y}px)`;
+    }
+
+    function hideMagnifyingArea() {
+        nerfCanvas.style.clipPath = 'circle(0% at 0px 0px)';
+    }
+
+    let lastDistance = 0;
+    let lastVerticalAngle = 0;
+    let lastTimestamp = 0;
+    function updateNerfRendering(distance, verticalAngle, isMoving, timestamp) {
+        lastDistance = distance;
+        lastVerticalAngle = verticalAngle;
+        if (isMoving) {
+            lastTimestamp = timestamp;
+        }
+
+        let opacity = 0.01;
+
+        // change NeRF rendering effect based on the Mode
+        if(nerfEffect == 0)
+        {
+            nerfCanvas.style.zIndex = '-1'; // go behind the glproxy canvas
+            opacity = 1;
+            if (!staticModelMode) {
+                //gltf.visible = false;
+            }
+        }
+        else if (nerfEffect == 1)
+        {
+            let dt = Date.now() - lastTimestamp;
+            if (dt < END_FADE_TIME) {
+                if (dt > BEGIN_FADE_TIME) {
+                    opacity = (dt - BEGIN_FADE_TIME) / (END_FADE_TIME - BEGIN_FADE_TIME);
+                }else{
+                    opacity = 0.01;
+                }
+                if (!staticModelMode) {
+                    //gltf.visible = true;
+                }
+                nerfCanvas.style.zIndex = '4'; // go behind the glproxy canvas
+            } else {
+                opacity = 1;
+                if (!staticModelMode) {
+                    //gltf.visible = false;
+                }
+                nerfCanvas.style.zIndex = '4'; // go behind the glproxy canvas
+            }
+        }
+        else if (nerfEffect == 2)
+        {
+            //implemented ahead of this in the eventListener
+            opacity = 1;
+            if (!staticModelMode) {
+                //gltf.visible = true;
+            }
+            nerfCanvas.style.zIndex = '4'; // go behind the glproxy canvas
+        }
+
+
+        // make less opaque if you're too far away
+        
+        // if (distance > BEGIN_FADE_DISTANCE) {
+        //     let amount = 0;
+        //     if (distance < END_FADE_DISTANCE) {
+        //         amount = (distance - BEGIN_FADE_DISTANCE) / (END_FADE_DISTANCE - BEGIN_FADE_DISTANCE);
+        //     } else {
+        //         amount = 1;
+        //     }
+        //     opacity = Math.min(opacity, 1.0 - amount);
+        // }
+
+        // make less opaque if you're looking at the ceiling
+
+        // if (verticalAngle > BEGIN_FADE_ANGLE) {
+        //     let amount = 0;
+        //     if (verticalAngle < END_FADE_ANGLE) {
+        //         amount = (verticalAngle - BEGIN_FADE_ANGLE) / (END_FADE_ANGLE - BEGIN_FADE_ANGLE);
+        //     } else {
+        //         amount = 1;
+        //     }
+        //     opacity = Math.min(opacity, 1.0 - amount);
+        // }
+
+        nerfCanvas.style.opacity = opacity;
+
+    }
+    exports.updateNerfRendering = updateNerfRendering;
 
     /**
      * @param {ShaderMode} shaderMode - initial shader mode to set on the patches
