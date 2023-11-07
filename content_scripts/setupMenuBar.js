@@ -34,6 +34,7 @@ createNameSpace('realityEditor.gui');
         DownloadScan: 'Download Scan',
         ViewCones: 'Show View Cones',
         AdvanceCameraShader: 'Next Camera Lens',
+NerfRendering: 'NeRF Rendering',
         ToggleAnalyticsSettings: 'Toggle Analytics Settings',
         ToggleHumanPoses: 'Human Poses',
         DarkMode: 'Dark Mode',
@@ -76,7 +77,7 @@ createNameSpace('realityEditor.gui');
         const toggleHumanPoses = new MenuItem(ITEM.ToggleHumanPoses, { shortcutKey: 'H', toggle: true, defaultVal: true, disabled: false }, null);
         menuBar.addItemToMenu(MENU.View, toggleHumanPoses);
 
-        const toggleSpaghetti = new MenuItem(ITEM.SpaghettiMap, { shortcutKey: 'N', toggle: true, defaultVal: false, disabled: true }, null);
+        const toggleSpaghetti = new MenuItem(ITEM.SpaghettiMap, { toggle: true, defaultVal: false, disabled: true }, null);
         menuBar.addItemToMenu(MENU.View, toggleSpaghetti);
 
         const toggleModelVisibility = new MenuItem(ITEM.ModelVisibility, { shortcutKey: 'T', toggle: true, defaultVal: true }, null); // other module can attach a callback later
@@ -96,6 +97,9 @@ createNameSpace('realityEditor.gui');
 
         const toggleVideoPlayback = new MenuItem(ITEM.VideoPlayback, { shortcutKey: 'OPEN_BRACKET', toggle: true, defaultVal: false }, null); // other module can attach a callback later
         menuBar.addItemToMenu(MENU.View, toggleVideoPlayback);
+
+        const toggleNerfRendering = new MenuItem(ITEM.NerfRendering, { shortcutKey: 'N', toggle: true, defaultVal: false }, null);
+        menuBar.addItemToMenu(MENU.View, toggleNerfRendering);
 
         const toggleDarkMode = new MenuItem(ITEM.DarkMode, { toggle: true, defaultVal: true }, null);
         menuBar.addItemToMenu(MENU.View, toggleDarkMode);
