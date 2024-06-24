@@ -1,6 +1,5 @@
 const fs = require('fs');
 const cp = require('child_process');
-const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
 const constants = require('./videoConstants');
 
 /**
@@ -40,6 +39,7 @@ module.exports = {
             output_path
         ];
 
+        const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
         let process = cp.spawn(ffmpegPath, args);
 
         if (constants.DEBUG_LOG_FFMPEG) {
@@ -107,6 +107,7 @@ module.exports = {
         //     output_path
         // ];
 
+        const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
         let process = cp.spawn(ffmpegPath, args);
 
         if (constants.DEBUG_LOG_FFMPEG) {
@@ -139,6 +140,7 @@ module.exports = {
             output_path
         ];
 
+        const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
         let process = cp.spawn(ffmpegPath, args);
         return process;
     },
@@ -157,6 +159,7 @@ module.exports = {
                     '-filter:v', 'setpts=' + newDuration / currentDurationInSeconds + '*PTS',
                     output_path
                 ];
+                const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
                 let process = cp.spawn(ffmpegPath, args);
 
                 if (constants.DEBUG_LOG_FFMPEG) {
@@ -172,6 +175,7 @@ module.exports = {
     ffmpeg_get_duration(filepath, completionHandler) {
         let args = [ '-i', filepath ]; // this doesn't have an output path, but stderr will print info about the input video
         // can also use ffprobe, just install @ffprobe-installer/ffprobe
+        const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
         let process = cp.spawn(ffmpegPath, args);
 
         process.stderr.setEncoding('utf8');
